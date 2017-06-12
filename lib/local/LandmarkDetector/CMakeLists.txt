@@ -1,8 +1,4 @@
-#TBB library
-include_directories(${TBB_ROOT_DIR}/include)
-
-include_directories(${BOOST_INCLUDE_DIR})
-
+# Source
 SET(SOURCE
     src/CCNF_patch_expert.cpp
 	src/LandmarkDetectionValidator.cpp
@@ -32,10 +28,29 @@ SET(HEADERS
 	include/stdafx.h
 )
 
-include_directories(./include)
-include_directories(${LandmarkDetector_SOURCE_DIR}/include)
+#include_directories(./include)
+#include_directories(${LandmarkDetector_SOURCE_DIR}/include)
 
-add_library( LandmarkDetector ${SOURCE} ${HEADERS} )
+# Target
+add_library(LandmarkDetector ${SOURCE} ${HEADERS})
+target_include_directories(LandmarkDetector PUBLIC
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+	${Boost_INCLUDE_DIRS}
+	${OpenCV_INCLUDE_DIRS}
+	${dlib_INCLUDE_DIRS}
+	${TBB_INCLUDE_DIRS}
+)
+target_link_libraries(LandmarkDetector PUBLIC
+	${Boost_LIBRARIES}
+	${OpenCV_LIBS}
+	${dlib_LIBRARIES}
+	${TBB_LIBRARIES}
+)
 
-install (TARGETS LandmarkDetector DESTINATION lib)
-install (FILES ${HEADERS} DESTINATION include/OpenFace)
+if(WIN32)
+	target_compile_definitions(LandmarkDetector PUBLIC -D_WIN32_WINNT=0x0A00)
+endif()
+
+# Installations
+install(TARGETS LandmarkDetector EXPORT open_face-targets DESTINATION lib)
+install(FILES ${HEADERS} DESTINATION include/OpenFace)

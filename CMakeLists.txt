@@ -1,33 +1,99 @@
 cmake_minimum_required (VERSION 2.8)
 project (OpenFace)
 
+# Set version
+set(OPEN_FACE_MAJOR_VERSION 0)
+set(OPEN_FACE_MINOR_VERSION 1)
+set(OPEN_FACE_PATCH_VERSION 0)
+set(OPEN_FACE_VERSION ${OPEN_FACE_MAJOR_VERSION}.${OPEN_FACE_MINOR_VERSION}.${OPEN_FACE_PATCH_VERSION})
+
+# Global configurations
+# ===================================================
+if(WIN32)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DNOMINMAX")
+	set(DEF_INSTALL_CMAKE_DIR cmake)
+else()
+	set(DEF_INSTALL_CMAKE_DIR lib/cmake/${PROJECT_NAME})
+endif()
+set(INSTALL_CMAKE_DIR ${DEF_INSTALL_CMAKE_DIR} CACHE PATH
+	"Installation directory for CMake files")
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules")
+set(CMAKE_DEBUG_POSTFIX "_d" CACHE STRING
+	"Add a custom \"postfix\" to static and shared libraries when in Debug build")
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/)
-
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
-
 set(CMAKE_CONFIG_DIR etc/OpenFace)
 set(CONFIG_DIR "${CMAKE_INSTALL_PREFIX}/${CMAKE_CONFIG_DIR}")
-add_definitions(-DCONFIG_DIR="${CONFIG_DIR}")
 
-find_package( OpenCV REQUIRED )
+# Find dependencies
+# ===================================================
 
-MESSAGE("OpenCV information:") 
-MESSAGE("  OpenCV_INCLUDE_DIRS: ${OpenCV_INCLUDE_DIRS}") 
-MESSAGE("  OpenCV_LIBRARIES: ${OpenCV_LIBRARIES}") 
-MESSAGE("  OpenCV_LIBRARY_DIRS: ${OpenCV_LIBRARY_DIRS}") 
-include_directories( ${OpenCV_INCLUDE_DIRS} )
+# Boost
+set(Boost_USE_STATIC_LIBS ${WITH_BOOST_STATIC})
+set(BOOST_ALL_DYN_LINK NOT ${WITH_BOOST_STATIC})
+if(WIN32)
+	if(${WITH_BOOST_STATIC})
+		add_definitions(-DBOOST_ALL_NO_LIB)
+	else()
+		add_definitions(-DBOOST_ALL_DYN_LINK)
+	endif()
+endif()
+find_package(Boost REQUIRED filesystem program_options regex timer)
 
-find_package( Boost 1.5.9 REQUIRED COMPONENTS filesystem system)
-MESSAGE("Boost information:") 
-MESSAGE("  Boost_INCLUDE_DIRS: ${Boost_INCLUDE_DIRS}") 
-MESSAGE("  Boost_LIBRARIES: ${Boost_LIBRARIES}") 
-MESSAGE("  Boost_LIBRARY_DIRS: ${Boost_LIBRARY_DIRS}") 
+# OpenCV
+find_package(OpenCV REQUIRED highgui imgproc imgcodecs calib3d objdetect)
 
-INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
-INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS}/boost)
-LINK_DIRECTORIES(${Boost_LIBRARY_DIRS})	
+# dlib
+find_package(dlib REQUIRED)
 
+# TBB
 find_package(TBB REQUIRED)
+
+# Add sub-directories
+# ===================================================
+# LandmarkDetector library
+add_subdirectory(lib/local/LandmarkDetector)
+
+# Facial Expression analysis library
+add_subdirectory(lib/local/FaceAnalyser)
+
+# Executables
+add_subdirectory(exe/FaceLandmarkImg)
+add_subdirectory(exe/FaceLandmarkVid)
+add_subdirectory(exe/FaceLandmarkVidMulti)
+add_subdirectory(exe/FeatureExtraction)
+
+# Export configuration
+# ===================================================
+
+# Add all targets to the build-tree export set
+set(OPEN_FACE_TARGETS LandmarkDetector FaceAnalyser 
+	FaceLandmarkImg FaceLandmarkVid FaceLandmarkVidMulti FeatureExtraction)
+export(TARGETS ${OPEN_FACE_TARGETS}
+  FILE "${PROJECT_BINARY_DIR}/open_face-targets.cmake")
+  
+# Export the package for use from the build-tree
+# (this registers the build-tree with a global CMake-registry)
+export(PACKAGE open_face)
+	 
+# Create config files
+configure_file(cmake/open_face-config.cmake.in
+  "${PROJECT_BINARY_DIR}/open_face-config.cmake" @ONLY)
+configure_file(cmake/open_face-config-version.cmake.in
+  "${PROJECT_BINARY_DIR}/open_face-config-version.cmake" @ONLY)
+  
+# Install config files
+install(FILES
+  "${PROJECT_BINARY_DIR}/open_face-config.cmake"
+  "${PROJECT_BINARY_DIR}/open_face-config-version.cmake"
+  DESTINATION "cmake" COMPONENT dev)
+  
+# Install the export set for use with the install-tree
+install(EXPORT open_face-targets DESTINATION cmake COMPONENT dev)
+
+# Move models
+# ===================================================
 
 # Move LandmarkDetector model
 file(GLOB files "lib/local/LandmarkDetector/model/*.txt")
@@ -142,39 +208,3 @@ foreach(file ${files})
 
 	install(DIRECTORY ${file} DESTINATION ${CMAKE_CONFIG_DIR}/AU_predictors)
 endforeach()
-
-if (${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU")
-    execute_process(COMMAND ${CMAKE_CXX_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
-    if (GCC_VERSION VERSION_LESS 4.7)
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x -msse -msse2 -msse3")
-    else ()
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -msse -msse2 -msse3")
-    endif ()
-else ()
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -msse -msse2 -msse3")
-endif ()
-
-# Boost
-if(WIN32)
-	include_directories(lib/3rdParty/boost)
-	include_directories(lib/3rdParty/boost/boost)
-	link_directories( ${PROJECT_SOURCE_DIR}/lib/3rdParty/boost/lib )
-else()
-	INCLUDE_DIRECTORIES(${BOOST_INCLUDE_DIR})
-endif()
-
-# dlib
-include_directories(lib/3rdParty/dlib/include)
-
-# dlib library
-add_subdirectory(lib/3rdParty/dlib)
-
-# LandmarkDetector library
-add_subdirectory(lib/local/LandmarkDetector)
-# Facial Expression analysis library
-add_subdirectory(lib/local/FaceAnalyser)
-# executables
-add_subdirectory(exe/FaceLandmarkImg)
-add_subdirectory(exe/FaceLandmarkVid)
-add_subdirectory(exe/FaceLandmarkVidMulti)
-add_subdirectory(exe/FeatureExtraction)

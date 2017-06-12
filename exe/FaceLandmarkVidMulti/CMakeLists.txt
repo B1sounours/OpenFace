@@ -1,15 +1,10 @@
-#TBB library
-include_directories(${TBB_ROOT_DIR}/include)
-
-# Local libraries
-include_directories(${LandmarkDetector_SOURCE_DIR}/include)
-	
-include_directories(../../lib/local/LandmarkDetector/include)
-			
+# Target			
 add_executable(FaceLandmarkVidMulti FaceLandmarkVidMulti.cpp)
-target_link_libraries(FaceLandmarkVidMulti LandmarkDetector)
-target_link_libraries(FaceLandmarkVidMulti dlib)
+target_link_libraries(FaceLandmarkVidMulti PRIVATE
+	FaceAnalyser
+)
 
-target_link_libraries(FaceLandmarkVidMulti ${OpenCV_LIBS} ${Boost_LIBRARIES} ${TBB_LIBRARIES})
-
-install (TARGETS FaceLandmarkVidMulti DESTINATION bin)
+# Installations
+install(TARGETS FaceLandmarkVidMulti
+		EXPORT open_face-targets
+		DESTINATION bin COMPONENT exe)

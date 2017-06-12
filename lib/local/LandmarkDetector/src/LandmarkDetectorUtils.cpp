@@ -42,8 +42,8 @@
 #include <opencv2/calib3d.hpp>
 
 // Boost includes
-#include <filesystem.hpp>
-#include <filesystem/fstream.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
 
 using namespace boost::filesystem;
 
